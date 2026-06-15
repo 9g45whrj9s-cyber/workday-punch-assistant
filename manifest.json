@@ -1,0 +1,18 @@
+{
+  "name": "Punch Assistant — National Gypsum Pryor",
+  "short_name": "Punch Assistant",
+  "description": "On-site reminders and punch logging for Workday at 4189 Hunt St, Pryor OK",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#1a2332",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

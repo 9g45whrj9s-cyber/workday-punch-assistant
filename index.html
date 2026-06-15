@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#1a2332" />
+  <title>Punch Assistant — National Gypsum Pryor</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --green: #3dd68c;
+      --green-dim: #1e4d38;
+      --amber: #f5a623;
+      --amber-dim: #4a3510;
+      --red: #ff6b6b;
+      --red-dim: #4a1f1f;
+      --blue: #4dabf7;
+      --radius: 14px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.45;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px 16px calc(24px + var(--safe-bottom));
+    }
+
+    header { margin-bottom: 20px; }
+    header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+    header p { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+
+    .status-card {
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid transparent;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .status-card.on-site { background: var(--green-dim); border-color: rgba(61, 214, 140, 0.35); }
+    .status-card.off-site { background: var(--red-dim); border-color: rgba(255, 107, 107, 0.35); }
+    .status-card.unknown { background: var(--amber-dim); border-color: rgba(245, 166, 35, 0.35); }
+    .status-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+    .status-value { font-size: 1.6rem; font-weight: 700; }
+    .status-detail { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+    .distance { font-variant-numeric: tabular-nums; }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; }
+
+    .schedule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.95rem;
+    }
+    .schedule-item:last-child { border-bottom: none; }
+    .schedule-item .time { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 52px; }
+
+    .badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge.ready { background: var(--green-dim); color: var(--green); }
+    .badge.wait { background: var(--surface2); color: var(--muted); }
+    .badge.now { background: var(--amber-dim); color: var(--amber); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+
+    .actions { display: grid; gap: 10px; margin: 16px 0; }
+    button, .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 16px; border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-row button { padding: 12px; font-size: 0.85rem; }
+
+    .alert-banner { display: none; background: linear-gradient(135deg, var(--amber-dim), var(--green-dim)); border: 1px solid rgba(245, 166, 35, 0.4); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+    .alert-banner.visible { display: block; }
+    .alert-banner strong { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+
+    .log-list { max-height: 200px; overflow-y: auto; font-size: 0.82rem; }
+    .log-entry { padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: var(--muted); }
+    .log-entry strong { color: var(--text); }
+
+    .setup summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: var(--blue); }
+    .setup ol { margin: 12px 0 0 20px; color: var(--muted); font-size: 0.88rem; }
+    .setup li { margin-bottom: 10px; }
+    .setup code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; color: var(--text); word-break: break-all; }
+
+    .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 0.88rem; color: var(--muted); }
+    input[type="range"] { flex: 1; accent-color: var(--blue); }
+    .footer-note { font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 20px; padding: 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Punch Assistant</h1>
+      <p>National Gypsum Paper Plant · 4189 Hunt St, Pryor, OK</p>
+    </header>
+
+    <div id="alertBanner" class="alert-banner" role="alert">
+      <strong id="alertTitle">Time to punch!</strong>
+      <span id="alertBody">Open Workday and tap Clock In/Out.</span>
+    </div>
+
+    <div id="statusCard" class="status-card unknown">
+      <div class="status-label">Your location</div>
+      <div id="statusValue" class="status-value">Checking GPS…</div>
+      <div id="statusDetail" class="status-detail">Allow location access when prompted.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" id="openWorkday">Open Workday App</button>
+      <button class="btn-secondary" id="enableNotifs">Enable Reminders</button>
+    </div>
+
+    <div class="card"><h2>Today's schedule</h2><div id="scheduleList"></div></div>
+
+    <div class="card">
+      <h2>Confirm punch (for your records)</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;">Tap after you punch in Workday — helps if payroll disputes a day.</p>
+      <div class="btn-row">
+        <button class="btn-secondary" data-punch="clock-in">✓ Clocked In</button>
+        <button class="btn-secondary" data-punch="lunch-out">✓ Lunch Out</button>
+        <button class="btn-secondary" data-punch="lunch-in">✓ Lunch In</button>
+        <button class="btn-secondary" data-punch="clock-out">✓ Clocked Out</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Punch log</h2>
+      <div id="punchLog" class="log-list"><div class="log-entry">No punches logged yet.</div></div>
+      <button class="btn-secondary" id="exportLog" style="margin-top:12px;padding:12px;">Copy log for IT</button>
+    </div>
+
+    <div class="card setup">
+      <h2>iPhone setup (recommended)</h2>
+      <p style="font-size:0.88rem;color:var(--muted);">Apple Shortcuts can remind you at the plant even when this page is closed.</p>
+      <details>
+        <summary>Step-by-step for your team</summary>
+        <ol>
+          <li>Open <strong>Shortcuts</strong> → <strong>Automation</strong> → <strong>+</strong>.</li>
+          <li><strong>Arrive</strong> at <code>4189 Hunt St, Pryor, OK 74361</code> — radius <strong>500 m</strong>.</li>
+          <li><strong>Show Notification</strong> + <strong>Open App</strong> → Workday.</li>
+          <li>Weekday times: 7:00 AM, 12:00 PM, 12:30 PM.</li>
+          <li><strong>Leave</strong> automation → clock out reminder.</li>
+          <li>Settings → Workday → Precise Location ON.</li>
+        </ol>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Geofence radius</h2>
+      <div class="slider-row"><span>200m</span><input type="range" id="radiusSlider" min="200" max="800" step="50" value="450" /><span>800m</span></div>
+      <p id="radiusLabel" style="font-size:0.85rem;color:var(--muted);margin-top:8px;">Current: 450 m — increase if GPS says you're off-site while inside the plant.</p>
+    </div>
+
+    <p class="footer-note">This app cannot punch Workday for you — it verifies you're on site and reminds you.</p>
+  </div>
+
+  <script>
+    const SITE = { name: "National Gypsum Paper Plant", address: "4189 Hunt St, Pryor, OK 74361", lat: 36.24662, lon: -95.27900 };
+    const SCHEDULE = [
+      { id: "clock-in", label: "Clock in", hour: 7, minute: 0, windowMin: 15, requiresOnSite: true },
+      { id: "lunch-out", label: "Clock out lunch", hour: 12, minute: 0, windowMin: 10, requiresOnSite: true },
+      { id: "lunch-in", label: "Clock in lunch", hour: 12, minute: 30, windowMin: 10, requiresOnSite: true },
+      { id: "clock-out", label: "Clock out (leave)", hour: null, minute: null, leaveTrigger: true },
+    ];
+    let geofenceRadiusM = 450, onSite = null, watchId = null, lastDistanceM = null;
+    let notifiedToday = JSON.parse(localStorage.getItem("notifiedToday") || "{}");
+    let todayKey = new Date().toDateString();
+    if (notifiedToday.date !== todayKey) { notifiedToday = { date: todayKey }; localStorage.setItem("notifiedToday", JSON.stringify(notifiedToday)); }
+
+    function haversineM(lat1, lon1, lat2, lon2) {
+      const R = 6371000, toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    const isWeekday = () => { const d = new Date().getDay(); return d >= 1 && d <= 5; };
+    const minutesNow = () => { const n = new Date(); return n.getHours()*60 + n.getMinutes(); };
+    const scheduleMinutes = (h,m) => h*60+m;
+    const inWindow = (h,m,w) => { const n = minutesNow(), t = scheduleMinutes(h,m); return n >= t && n < t+w; };
+
+    function updateStatusCard() {
+      const card = document.getElementById("statusCard"), value = document.getElementById("statusValue"), detail = document.getElementById("statusDetail");
+      if (onSite === null) { card.className = "status-card unknown"; value.textContent = "GPS unavailable"; detail.textContent = "Enable Location Services for Safari and retry."; return; }
+      if (onSite) { card.className = "status-card on-site"; value.textContent = "On site"; detail.innerHTML = `Inside plant geofence · <span class="distance">${Math.round(lastDistanceM)} m</span> from center`; }
+      else { card.className = "status-card off-site"; value.textContent = "Not on site"; detail.innerHTML = `<span class="distance">${Math.round(lastDistanceM)} m</span> away — move closer or widen geofence`; }
+    }
+
+    function renderSchedule() {
+      const list = document.getElementById("scheduleList"); list.innerHTML = "";
+      SCHEDULE.forEach(item => {
+        const row = document.createElement("div"); row.className = "schedule-item";
+        let badge = '<span class="badge wait">Later</span>', timeStr = "On leave";
+        if (!item.leaveTrigger) {
+          const h = item.hour, m = item.minute;
+          timeStr = `${((h%12)||12)}:${String(m).padStart(2,"0")} ${h>=12?"PM":"AM"}`;
+          if (isWeekday() && inWindow(h,m,item.windowMin)) badge = (!item.requiresOnSite || onSite) ? '<span class="badge now">Now</span>' : '<span class="badge wait">On site only</span>';
+          else if (isWeekday() && minutesNow() >= scheduleMinutes(h,m)) badge = '<span class="badge ready">Done</span>';
+        } else if (onSite === false && lastDistanceM !== null) { badge = '<span class="badge now">Leaving?</span>'; timeStr = "When you leave"; }
+        row.innerHTML = `<span><span class="time">${timeStr}</span> ${item.label}</span>${badge}`; list.appendChild(row);
+      });
+    }
+
+    function checkReminders() {
+      if (!isWeekday()) return;
+      SCHEDULE.forEach(item => {
+        if (item.leaveTrigger || !inWindow(item.hour,item.minute,item.windowMin) || (item.requiresOnSite && !onSite) || notifiedToday[item.id]) return;
+        showAlert(item.label, "You're at the plant. Open Workday and punch now.");
+        fireNotification(item.label, "Tap to open Workday and clock in/out.");
+        notifiedToday[item.id] = true; localStorage.setItem("notifiedToday", JSON.stringify(notifiedToday));
+      });
+      if (onSite === false && lastDistanceM > geofenceRadiusM + 100 && !notifiedToday["clock-out-leave"] && localStorage.getItem("wasOnSite") === "true") {
+        showAlert("Clock out", "You left the plant area. Don't forget to clock out in Workday.");
+        fireNotification("Clock out", "You left the job site.");
+        notifiedToday["clock-out-leave"] = true; localStorage.setItem("notifiedToday", JSON.stringify(notifiedToday));
+      }
+      if (onSite) localStorage.setItem("wasOnSite", "true");
+    }
+
+    function showAlert(title, body) { document.getElementById("alertTitle").textContent = title; document.getElementById("alertBody").textContent = body; document.getElementById("alertBanner").classList.add("visible"); }
+    function fireNotification(title, body) { if (Notification.permission === "granted") try { new Notification(title, { body, icon: "icon.svg", tag: title }); } catch(_){} }
+    function handlePosition(pos) { lastDistanceM = haversineM(pos.coords.latitude, pos.coords.longitude, SITE.lat, SITE.lon); onSite = lastDistanceM <= geofenceRadiusM; updateStatusCard(); renderSchedule(); checkReminders(); }
+    function handlePositionError(err) { onSite = null; document.getElementById("statusDetail").textContent = err.code === 1 ? "Location denied. Settings → Safari → Location → Allow." : "Could not get GPS fix. Try standing near a window."; updateStatusCard(); renderSchedule(); }
+    function startWatching() { if (!navigator.geolocation) return handlePositionError({code:0}); if (watchId !== null) navigator.geolocation.clearWatch(watchId); watchId = navigator.geolocation.watchPosition(handlePosition, handlePositionError, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }); }
+
+    function logPunch(type) {
+      const labels = {"clock-in":"Clocked in","lunch-out":"Lunch out","lunch-in":"Lunch in","clock-out":"Clocked out"};
+      const entries = JSON.parse(localStorage.getItem("punchLog") || "[]");
+      entries.unshift({ type, label: labels[type], time: new Date().toISOString(), onSite, distanceM: lastDistanceM ? Math.round(lastDistanceM) : null });
+      localStorage.setItem("punchLog", JSON.stringify(entries.slice(0,100))); renderLog();
+    }
+    function renderLog() {
+      const entries = JSON.parse(localStorage.getItem("punchLog") || "[]"), el = document.getElementById("punchLog");
+      if (!entries.length) { el.innerHTML = '<div class="log-entry">No punches logged yet.</div>'; return; }
+      el.innerHTML = entries.map(e => { const d = new Date(e.time), site = e.onSite===true?"on site":e.onSite===false?"off site":"GPS n/a"; return `<div class="log-entry"><strong>${e.label}</strong> — ${d.toLocaleString()}<br>${site}${e.distanceM!=null?` · ${e.distanceM}m`:""}</div>`; }).join("");
+    }
+    function exportLog() {
+      const entries = JSON.parse(localStorage.getItem("punchLog") || "[]");
+      const text = [`Workday Punch Log — ${SITE.name}`, SITE.address, `Exported: ${new Date().toLocaleString()}`, "", ...entries.map(e => `${new Date(e.time).toLocaleString()} | ${e.label} | ${e.onSite===true?"ON SITE":e.onSite===false?"OFF SITE":"GPS unknown"} | ${e.distanceM??"?"}m`)].join("\n");
+      navigator.clipboard.writeText(text).then(() => alert("Log copied! Paste into an email to IT/HR.")).catch(() => prompt("Copy this log:", text));
+    }
+
+    document.getElementById("openWorkday").addEventListener("click", () => { window.location.href = "workday://"; setTimeout(() => alert("If Workday didn't open, find the Workday app on your home screen."), 1200); });
+    document.getElementById("enableNotifs").addEventListener("click", async () => {
+      if (!("Notification" in window)) return alert("Use the iPhone Shortcuts setup below.");
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") { document.getElementById("enableNotifs").textContent = "Reminders enabled ✓"; if ("serviceWorker" in navigator) try { await navigator.serviceWorker.register("sw.js"); } catch(_){} }
+      else alert("Enable notifications in Settings → Safari, or use Shortcuts.");
+    });
+    document.getElementById("radiusSlider").addEventListener("input", e => { geofenceRadiusM = Number(e.target.value); document.getElementById("radiusLabel").textContent = `Current: ${geofenceRadiusM} m — increase if GPS says you're off-site while inside the plant.`; localStorage.setItem("geofenceRadiusM", String(geofenceRadiusM)); if (lastDistanceM !== null) { onSite = lastDistanceM <= geofenceRadiusM; updateStatusCard(); renderSchedule(); } });
+    document.querySelectorAll("[data-punch]").forEach(btn => btn.addEventListener("click", () => logPunch(btn.dataset.punch)));
+    document.getElementById("exportLog").addEventListener("click", exportLog);
+    const savedRadius = localStorage.getItem("geofenceRadiusM"); if (savedRadius) { geofenceRadiusM = Number(savedRadius); document.getElementById("radiusSlider").value = geofenceRadiusM; document.getElementById("radiusLabel").textContent = `Current: ${geofenceRadiusM} m — increase if GPS says you're off-site while inside the plant.`; }
+    renderSchedule(); renderLog(); startWatching(); setInterval(() => { renderSchedule(); checkReminders(); }, 30000);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  </script>
+</body>
+</html>
